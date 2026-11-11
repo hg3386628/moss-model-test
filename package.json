@@ -1,0 +1,13 @@
+{
+  "name": "moss-model-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MOSS API 模型测试页（本地 / 云端代理 + 单页应用）",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MOSS 模型测试</title>
+  <meta name="description" content="MOSS API 本地模型测试页：对话、语音、转写、图片理解、文生图" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230c0d10'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23ff4b64'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <div>
+          <h1>MOSS 模型测试</h1>
+          <p class="tagline">对话 · 语音 · 视觉 · 文生图</p>
+        </div>
+      </div>
+      <div class="settings" id="settings">
+        <label class="field key-field">
+          <span>API Key</span>
+          <span class="key-row">
+            <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-… 或留空以使用代理环境变量" />
+            <button type="button" class="icon-btn" id="toggleKey" title="显示 / 隐藏" aria-label="显示或隐藏密钥">显示</button>
+          </span>
+        </label>
+        <label class="field">
+          <span>Base URL</span>
+          <input id="baseUrl" type="text" spellcheck="false" placeholder="留空 = 本页同源代理（推荐）" />
+        </label>
+        <div class="settings-actions">
+          <button type="button" class="btn btn-ghost" id="saveSettings">保存设置</button>
+          <span class="health" id="health">检测代理中…</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="能力页签">
+      <button type="button" class="tab is-active" role="tab" aria-selected="true" data-tab="chat">对话</button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="tts">语音合成 <em class="paid">付费</em></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="asr">语音转写 <em class="paid">付费</em></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="vl">图片理解</button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="image">文生图 <em class="paid">付费</em></button>
+    </nav>
+
+    <main class="workspace">
+      <section class="stage">
+        <!-- Chat -->
+        <div class="panel is-active" id="panel-chat" role="tabpanel">
+          <div class="toolbar">
+            <label class="field">
+              <span>模型</span>
+              <select id="chatModel">
+                <option value="nex-n2.6">nex-n2.6（稳定 · 限时免费）</option>
+                <option value="nex-n2.6-2026-11-05">nex-n2.6-2026-11-05（快照）</option>
+              </select>
+            </label>
+            <label class="field field-grow">
+              <span>系统提示</span>
+              <input id="chatSystem" type="text" placeholder="可选，例如：你是简洁的中文助手" />
+            </label>
+            <label class="field field-temp">
+              <span>Temperature <strong id="tempVal">0.7</strong></span>
+              <input id="chatTemp" type="range" min="0" max="2" step="0.1" value="0.7" />
+            </label>
+            <label class="field field-narrow">
+              <span>max_tokens</span>
+              <input id="chatMaxTokens" type="number" min="1" max="131072" value="1024" />
+            </label>
+            <label class="toggle">
+              <input id="chatStream" type="checkbox" checked />
+              <span>流式输出</span>
+            </label>
+          </div>
+          <div class="metrics-row">
+            <div class="metrics" id="chatMetrics">尚未发送请求</div>
+            <button type="button" class="btn btn-ghost" id="chatClear">清空对话</button>
+          </div>
+          <div class="thread" id="chatThread" aria-live="polite"></div>
+          <form class="composer" id="chatForm">
+            <textarea id="chatInput" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行" required></textarea>
+            <button type="submit" class="btn btn-primary" id="chatSend">发送</button>
+          </form>
+        </div>
+
+        <!-- TTS -->
+        <div class="panel" id="panel-tts" role="tabpanel" hidden>
+          <p class="banner warn">语音合成按字符计费（约 ¥2.00 / 万字符）。账号积分为 0 时会返回 <code>402 insufficient_credits</code>。</p>
+          <div class="toolbar">
+            <label class="field">
+              <span>模型</span>
+              <select id="ttsModel">
+                <option value="moss-tts-1.5-flash">moss-tts-1.5-flash</option>
+                <option value="moss-tts-1.5-flash-2026-06-26">moss-tts-1.5-flash-2026-06-26（快照）</option>
+                <option value="moss-tts-1.0-pro">moss-tts-1.0-pro</option>
+                <option value="moss-tts-1.0-pro-2026-02-07">moss-tts-1.0-pro-2026-02-07（快照）</option>
+              </select>
+            </label>
+            <label class="field field-grow">
+              <span>音色</span>
+              <span class="key-row">
+                <select id="ttsVoice"><option value="">点击右侧按钮加载音色列表</option></select>
+                <button type="button" class="icon-btn" id="ttsLoadVoices">刷新</button>
+              </span>
+            </label>
+            <label class="field">
+              <span>格式</span>
+              <select id="ttsFormat">
+                <option value="mp3">mp3</option>
+                <option value="wav">wav</option>
+                <option value="aac">aac</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>合成文本</span>
+            <textarea id="ttsInput" rows="5" placeholder="欢迎使用 MOSS API。">欢迎使用 MOSS API。</textarea>
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="ttsRun">生成并播放</button>
+          </div>
+          <div class="result" id="ttsResult"></div>
+        </div>
+
+        <!-- ASR -->
+        <div class="panel" id="panel-asr" role="tabpanel" hidden>
+          <p class="banner warn">普通转写约 ¥0.80 / 小时。也可改用公网音频 URL，不必先上传。</p>
+          <div class="toolbar">
+            <label class="field">
+              <span>模型</span>
+              <select id="asrModel">
+                <option value="moss-transcribe-1.0">moss-transcribe-1.0（普通转写）</option>
+                <option value="moss-transcribe-1.0-2026-07-22">moss-transcribe-1.0-2026-07-22（快照）</option>
+                <option value="moss-transcribe-diarize-pro">moss-transcribe-diarize-pro（说话人分离）</option>
+              </select>
+            </label>
+            <label class="toggle" id="asrDiarizeWrap" hidden>
+              <input id="asrDiarize" type="checkbox" />
+              <span>说话人分离</span>
+            </label>
+          </div>
+          <label class="field">
+            <span>上传音频</span>
+            <input id="asrFile" type="file" accept="audio/*,video/mp4,video/webm,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus" />
+          </label>
+          <label class="field">
+            <span>或公网 URL</span>
+            <input id="asrUrl" type="url" placeholder="https://…" />
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="asrRun">开始转写</button>
+          </div>
+          <div class="result" id="asrResult"></div>
+        </div>
+
+        <!-- VL -->
+        <div class="panel" id="panel-vl" role="tabpanel" hidden>
+          <p class="banner">moss-vl-1.0 目前限时免费。上传会先走 <code>POST /v1/files</code>（purpose=image），再调用 <code>POST /v1/responses</code>。不支持 Base64 内联，URL 必须能被服务端访问。</p>
+          <div class="toolbar">
+            <label class="field">
+              <span>模型</span>
+              <select id="vlModel">
+                <option value="moss-vl-1.0">moss-vl-1.0（稳定 · 限时免费）</option>
+                <option value="moss-vl-1.0-2026-07-08">moss-vl-1.0-2026-07-08（快照）</option>
+              </select>
+            </label>
+            <label class="field field-narrow">
+              <span>max_output_tokens</span>
+              <input id="vlMaxTokens" type="number" min="1" max="8192" value="1024" />
+            </label>
+          </div>
+          <div class="split-fields">
+            <label class="field">
+              <span>上传图片</span>
+              <input id="vlFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff" />
+            </label>
+            <label class="field">
+              <span>或公网图片 URL</span>
+              <input id="vlUrl" type="url" placeholder="https://…" />
+            </label>
+          </div>
+          <div class="preview" id="vlPreview" hidden></div>
+          <label class="field">
+            <span>提示词</span>
+            <textarea id="vlPrompt" rows="3">请描述图片中的主要内容。</textarea>
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="vlRun">开始理解</button>
+          </div>
+          <div class="result" id="vlResult"></div>
+        </div>
+
+        <!-- Image gen -->
+        <div class="panel" id="panel-image" role="tabpanel" hidden>
+          <p class="banner warn">文生图已于 2026 年 11 月 11 日 12:00 开始计费：低分辨率约 <strong>¥0.20 / 张</strong>（约 4 积分），高分辨率约 ¥0.30 / 张。当前账号积分为 0，调用会返回 402。智能改写另计 ¥0.05 / 次。</p>
+          <div class="toolbar">
+            <label class="field">
+              <span>模型</span>
+              <select id="imgModel">
+                <option value="moss-image-base-1.0">moss-image-base-1.0</option>
+                <option value="moss-image-base-1.0-2026-10-09">moss-image-base-1.0-2026-10-09（快照）</option>
+                <option value="moss-image-sft-1.0">moss-image-sft-1.0</option>
+                <option value="moss-image-sft-1.0-2026-10-09">moss-image-sft-1.0-2026-10-09（快照）</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>尺寸</span>
+              <select id="imgSize">
+                <option value="1024x1024">1024×1024</option>
+                <option value="768x1024">768×1024</option>
+                <option value="1024x768">1024×768</option>
+                <option value="512x512">512×512</option>
+              </select>
+            </label>
+            <label class="toggle">
+              <input id="imgEnhance" type="checkbox" />
+              <span>智能改写（+¥0.05）</span>
+            </label>
+          </div>
+          <label class="field">
+            <span>提示词</span>
+            <textarea id="imgPrompt" rows="4" placeholder="描述你想生成的画面">一只橘猫坐在窗边，窗外是雨后的花园，柔和的自然光，温暖细腻的摄影风格。</textarea>
+          </label>
+          <label class="field">
+            <span>负向提示（可选）</span>
+            <input id="imgNegative" type="text" value="nsfw, worst quality, bad anatomy, watermark, jpeg artifact" />
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="imgRun">生成图片</button>
+          </div>
+          <div class="result" id="imgResult"></div>
+        </div>
+      </section>
+
+      <aside class="inspector">
+        <div class="inspector-head">
+          <h2>原始请求 / 响应</h2>
+          <div class="inspector-actions">
+            <button type="button" class="seg is-active" data-pane="request">请求</button>
+            <button type="button" class="seg" data-pane="response">响应</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="copyJson">复制</button>
+          </div>
+        </div>
+        <div class="meta" id="ioMeta">还没有请求</div>
+        <pre class="json" id="ioJson"></pre>
+      </aside>
+    </main>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# secrets — never commit
+.moss_key
+.env
+.env.*
+*.pem
+
+# generated / local
+shot.png
+node_modules/
+.DS_Store
+*.log
+.cache/
