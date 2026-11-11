@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
-const PORT = Number(process.env.PORT || 8787);
+const PORT = Number(process.env.APP_PORT || process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
 const UPSTREAM = (process.env.MOSS_API_ORIGIN || 'https://api.mosi.cn').replace(/\/+$/, '');
 const ROOT = __dirname;
